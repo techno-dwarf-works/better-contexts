@@ -1,43 +1,75 @@
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Better.Attributes.Runtime.Misc;
 using Better.Attributes.Runtime.Select;
-using Better.Commons.Runtime.Extensions;
-using Better.Contexts.Runtime.Installers;
+using Better.Attributes.Runtime.Validation;
+using Better.Contexts.Runtime.BetterContexts.Runtime.Interfaces;
 using UnityEngine;
 
 namespace Better.Contexts.Runtime
 {
-    public class MonoContext : MonoBehaviour
+    public class MonoContext : MonoBehaviour, IContext
     {
-        [Select]
-        [SerializeReference] private Installer[] _installers;
+        [HideLabel]
+        [SerializeField] private PocoContext _context;
+
+        [Select] [NotNull]
+        [SerializeReference] private BindBehaviour _bindBehaviour;
+
+        public BindStatus Status => _context.Status;
 
         private CancellationTokenSource _tokenSource;
 
-        private async void Awake()
+        private void Awake()
         {
             _tokenSource = new CancellationTokenSource();
-            await EnterAsync(_tokenSource.Token);
+            _bindBehaviour.OnAwake(_context, _tokenSource.Token);
         }
 
-        private async Task EnterAsync(CancellationToken cancellationToken)
+        private void Start()
         {
-            await _installers.Select(x => x.InstallBindingsAsync(cancellationToken)).WhenAll();
+            _bindBehaviour.OnStart(_context, _tokenSource.Token);
         }
 
-        private void Exit()
+        private void OnEnable()
         {
-            for (int i = 0; i < _installers.Length; i++)
-            {
-                _installers[i].UninstallBindings();
-            }
+            _bindBehaviour.OnEnable(_context, _tokenSource.Token);
         }
+
+        private void OnDisable()
+        {
+            _bindBehaviour.OnDisable(_context, _tokenSource.Token);
+        }
+
+        #region IContext
+
+        public Task BindAsync(CancellationToken cancellationToken)
+        {
+            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _tokenSource.Token);
+            
+            return _bindBehaviour.OnBindAsync(_context, linkedTokenSource.Token);
+        }
+
+        public Task PostBindAsync(CancellationToken cancellationToken)
+        {
+            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _tokenSource.Token);
+            
+            return _bindBehaviour.OnPostBindAsync(_context, linkedTokenSource.Token);
+        }
+
+        public Task UnbindAsync(CancellationToken cancellationToken)
+        {
+            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _tokenSource.Token);
+            
+            return _bindBehaviour.OnUnbindAsync(_context, linkedTokenSource.Token);
+        }
+
+        #endregion
 
         private void OnDestroy()
         {
             _tokenSource?.Cancel();
-            Exit();
+            _bindBehaviour.OnDestroy(_context, CancellationToken.None);
         }
     }
 }
