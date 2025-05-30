@@ -3,7 +3,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Better.Attributes.Runtime.Select;
 using Better.Commons.Runtime.Extensions;
 using Better.Locators.Runtime;
 using Better.Services.Runtime.Interfaces;
@@ -32,15 +31,21 @@ namespace Better.Contexts.Runtime.Installers
                 ServiceLocator.Register(Services[i]);
             }
 
-            await Services.Select(x => x.PostInitializeAsync(cancellationToken)).WhenAll();
         }
 
-        public override void UninstallBindings()
+        public override Task PostInstallBindingsAsync(CancellationToken cancellationToken)
+        {
+            return Services.Select(x => x.PostInitializeAsync(cancellationToken)).WhenAll();
+        }
+
+        public override Task UninstallBindingsAsync(CancellationToken cancellationToken)
         {
             for (int i = 0; i < Services.Length; i++)
             {
                 ServiceLocator.Unregister(Services[i]);
             }
+            
+            return Task.CompletedTask;
         }
     }
 }

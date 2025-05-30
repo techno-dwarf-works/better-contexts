@@ -8,6 +8,7 @@ namespace Better.Contexts.Runtime.Installers
     public abstract class Installer
     {
         public abstract Task InstallBindingsAsync(CancellationToken cancellationToken);
-        public abstract void UninstallBindings();
+        public abstract Task PostInstallBindingsAsync(CancellationToken cancellationToken);
+        public abstract Task UninstallBindingsAsync(CancellationToken cancellationToken);
     }
 }
